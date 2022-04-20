@@ -1,5 +1,6 @@
 import pyttsx3
 import pywhatkit
+import urllib.request
 
 from tkinter import *
 import threading
@@ -51,8 +52,16 @@ def ask_from_bot():
         msgs.insert(END, "you : " + inp)
         result = model.predict(keras.preprocessing.sequence.pad_sequences(tokenizer.texts_to_sequences([inp]),
                                                  truncating='post', maxlen=max_len))
+        
+        temporary=[[i,r] for i,r in enumerate(result[0])]
+        
+        temporary.sort(key=lambda x: x[1], reverse=True)
+        print(temporary[0][1])
+
+        
         tag = lbl_encoder.inverse_transform([np.argmax(result)])
-        if tag=='out_of_bound':
+
+        if (temporary[0][1]<0.9 and temporary[0][1]>=0.6) or tag=='out_of_bound':
             msgs.insert(END, "celera : " + 'Please give me some time to think this')
             talk("")
             for i in range(10):
@@ -71,50 +80,63 @@ def ask_from_bot():
 
             url = search_results[0]
             print(url)
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text)
-            metas = soup.find_all('meta') #Get Meta Description
-            flag=0
-            for m in metas:
-                x=m.get('name')
-                if not(x=="") and x and x == 'Description' or x=='description':
-                    print(x)
-                    desc = m.get('content')
-                    if desc=="":
-                        pass
-                    else:
-                        flag=1
-                        msgs.insert(END, "celera : " + desc)
-                        talk("")
-                        for i in range(10):
-                            talk("")
-                        talk(desc)
-                    break
-            if(flag==0):
+            if url.find('https://www.youtube.com')>=0:
+                talk('I found this which seems cool😁!!')
+                msgs.insert(END, "celera : " + 'I found this which seems cool😁!!')
+                pywhatkit.playonyt(url)
+            
+            else:
+                response = requests.get(url)
+                soup = BeautifulSoup(response.text)
+                metas = soup.find_all('meta') #Get Meta Description
+                flag=0
                 for m in metas:
                     x=m.get('name')
-                    if not(x=="") and x and (x.find('Description') or x.find('description'))>=0:
+                    if not(x=="") and x and x == 'Description' or x=='description':
+                        print(x)
                         desc = m.get('content')
                         if desc=="":
                             pass
                         else:
                             flag=1
                             msgs.insert(END, "celera : " + desc)
+                            msgs.insert(END, "celera : " + "you may visit: "+ url)
                             talk("")
                             for i in range(10):
                                 talk("")
                             talk(desc)
                         break
-            if(flag==0):
-                print(99)
-                msgs.insert(END, "celera : " + 'Sorry! I dont know')
-                talk("")
-                for i in range(10):
+                if(flag==0):
+                    for m in metas:
+                        x=m.get('name')
+                        if not(x=="") and x and (x.find('Description') or x.find('description'))>=0:
+                            desc = m.get('content')
+                            if desc=="":
+                                pass
+                            else:
+                                flag=1
+                                msgs.insert(END, "celera : " + desc)
+                                msgs.insert(END, "celera : " + "you may visit: "+ url)
+                                talk("")
+                                for i in range(10):
+                                    talk("")
+                                talk(desc)
+                            break
+                if(flag==0):
+                    print(99)
+                    msgs.insert(END, "celera : " + 'Sorry! I dont know')
                     talk("")
-                talk('Sorry! I dont know')
+                    for i in range(10):
+                        talk("")
+                    talk('Sorry! I dont know')
         
 
-
+        elif temporary[0][1]<0.6:
+            msgs.insert(END, "celera : " + 'Sorry! I dont know')
+            talk("")
+            for i in range(10):
+                talk("")
+            talk('Sorry! I dont know')
         else:
             for i in data['intents']:
                 if i['tag'] == tag:
@@ -168,6 +190,8 @@ import pickle
 
 with open("intents.json") as file:
     data = json.load(file)
+
+
         
         
         # print(Fore.GREEN + "ChatBot:" + Style.RESET_ALL,random.choice(responses))
